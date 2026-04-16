@@ -1,0 +1,27 @@
+{
+  "name": "virt-person",
+  "version": "1.0.0",
+  "description": "Ubuntu 桌面虚拟人物应用，Live2D + 本地 STT/TTS/LLM 语音对话",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev:main": "vite build --config vite.main.config.ts --watch",
+    "dev:renderer": "vite --config vite.renderer.config.ts",
+    "build": "vite build --config vite.main.config.ts && vite build --config vite.renderer.config.ts",
+    "electron": "electron dist/main/index.js",
+    "test": "vitest run",
+    "pack": "npm run build && electron-builder"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "electron": "28.x",
+    "electron-builder": "^24.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "pixi-live2d-display": "^0.4.0",
+    "pixi.js": "^7.0.0"
+  }
+}

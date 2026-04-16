@@ -1,0 +1,17 @@
+appId: com.virtperson.app
+productName: virt-person
+directories:
+  output: dist/release
+files:
+  - dist/main/**
+  - dist/renderer/**
+extraResources:
+  - from: resources/
+    to: resources/
+  - from: config.json
+    to: config.json
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Utility
