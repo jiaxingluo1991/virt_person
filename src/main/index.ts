@@ -29,10 +29,10 @@ function createWindow(): BrowserWindow {
 }
 
 app.whenReady().then(() => {
-  const configPath = join(
-    process.env.NODE_ENV === 'development' ? process.cwd() : process.resourcesPath,
-    'config.json'
-  )
+  // 开发时：项目根目录；打包后：electron-builder 将 config.json 放到 resourcesPath
+  const configPath = app.isPackaged
+    ? join(process.resourcesPath, 'config.json')
+    : join(process.cwd(), 'config.json')
   const cfg = loadConfig(configPath)
   const { stt, tts, llm } = createAdapters(cfg)
   const dialog = new DialogManager(stt, tts, llm)

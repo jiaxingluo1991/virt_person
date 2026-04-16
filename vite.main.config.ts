@@ -10,7 +10,7 @@ export default defineConfig({
     },
     outDir: 'dist/main',
     rollupOptions: {
-      external: ['electron', 'ffmpeg-static', 'fs', 'path', 'child_process', 'os', 'http', 'https', 'url', 'stream', 'buffer']
+      external: ['electron', 'ffmpeg-static', 'fs', 'path', 'child_process', 'os', 'util', 'http', 'https', 'url', 'stream', 'buffer', 'crypto', 'events', 'net', 'tls', 'zlib']
     }
   }
 })
