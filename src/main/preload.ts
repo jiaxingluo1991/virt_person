@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+// 从 additionalArguments 读取 resourcesPath，在沙箱下可靠
+const resourcesPathArg = process.argv.find(a => a.startsWith('--resources-path='))
+const resourcesPath = resourcesPathArg ? resourcesPathArg.slice('--resources-path='.length) : ''
+
 contextBridge.exposeInMainWorld('electronAPI', {
+  resourcesPath,
   sendAudio: (buffer: ArrayBuffer) => ipcRenderer.send('audio:data', buffer),
   clearDialog: () => ipcRenderer.send('dialog:clear'),
   onTtsAudio: (cb: (buf: ArrayBuffer) => void) =>

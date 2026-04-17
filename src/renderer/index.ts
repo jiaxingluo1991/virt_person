@@ -1,10 +1,10 @@
-import { Live2DController } from './live2d'
 import { AudioPlayer } from './audio-player'
 import { Recorder } from './recorder'
 
 declare global {
   interface Window {
     electronAPI: {
+      resourcesPath: string
       sendAudio: (buf: ArrayBuffer) => void
       clearDialog: () => void
       onTtsAudio: (cb: (buf: ArrayBuffer) => void) => void
@@ -19,8 +19,33 @@ async function main() {
   const container = document.getElementById('canvas-container')!
   const statusEl = document.getElementById('status')!
 
+  statusEl.textContent = '加载模型中...'
+
+  const resourcesPath = window.electronAPI.resourcesPath
+
+  // 加载 Cubism Core（构建时已复制到 dist/renderer/cubism-core/）
+  await new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = './cubism-core/live2dcubismcore.min.js'
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load Cubism Core'))
+    document.head.appendChild(script)
+  })
+
+  // Cubism Core 加载完后再动态导入 Live2DController
+  const { Live2DController } = await import('./live2d')
+
+  const modelPath = `file://${resourcesPath}/models/Haru/Haru.model3.json`
+
   const live2d = new Live2DController(container)
-  await live2d.loadModel('../../resources/models/Haru/Haru.model3.json')
+  try {
+    await live2d.loadModel(modelPath)
+    statusEl.textContent = '按住空格键说话'
+  } catch (err) {
+    statusEl.textContent = `模型加载失败: ${err}`
+    console.error('Live2D load error:', err)
+    return
+  }
 
   const player = new AudioPlayer((volume) => live2d.setLipSync(volume))
   const recorder = new Recorder({ silenceThreshold: 0.01, silenceDurationMs: 1500 })

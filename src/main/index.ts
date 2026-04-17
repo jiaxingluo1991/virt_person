@@ -5,16 +5,15 @@ import { createAdapters } from './adapters/factory'
 import { DialogManager } from './dialog'
 import { registerIpcHandlers } from './ipc-handlers'
 
-function createWindow(): BrowserWindow {
+function createWindow(resourcesPath: string): BrowserWindow {
   const win = new BrowserWindow({
     width: 800,
     height: 600,
-    frame: false,
-    transparent: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: join(__dirname, 'preload.js')
+      preload: join(__dirname, 'preload.js'),
+      additionalArguments: [`--resources-path=${resourcesPath}`]
     }
   })
 
@@ -23,21 +22,27 @@ function createWindow(): BrowserWindow {
     win.webContents.openDevTools()
   } else {
     win.loadFile(join(__dirname, '../renderer/index.html'))
+    win.webContents.openDevTools()
   }
 
   return win
 }
 
 app.whenReady().then(() => {
-  // 开发时：项目根目录；打包后：electron-builder 将 config.json 放到 resourcesPath
-  const configPath = app.isPackaged
+  const isPackaged = app.isPackaged
+  const configPath = isPackaged
     ? join(process.resourcesPath, 'config.json')
     : join(process.cwd(), 'config.json')
+
+  const resourcesPath = isPackaged
+    ? process.resourcesPath
+    : join(process.cwd(), 'resources')
+
   const cfg = loadConfig(configPath)
   const { stt, tts, llm } = createAdapters(cfg)
   const dialog = new DialogManager(stt, tts, llm)
   registerIpcHandlers(dialog)
-  createWindow()
+  createWindow(resourcesPath)
 })
 
 app.on('window-all-closed', () => {
