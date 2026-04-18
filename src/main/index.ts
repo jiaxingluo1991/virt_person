@@ -7,8 +7,11 @@ import { registerIpcHandlers } from './ipc-handlers'
 
 function createWindow(resourcesPath: string): BrowserWindow {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1000,
+    height: 800,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -19,10 +22,8 @@ function createWindow(resourcesPath: string): BrowserWindow {
 
   if (process.env.NODE_ENV === 'development') {
     win.loadURL('http://localhost:5173')
-    win.webContents.openDevTools()
   } else {
     win.loadFile(join(__dirname, '../renderer/index.html'))
-    win.webContents.openDevTools()
   }
 
   return win

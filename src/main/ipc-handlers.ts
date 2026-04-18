@@ -1,4 +1,4 @@
-import { ipcMain, IpcMainEvent } from 'electron'
+import { ipcMain, IpcMainEvent, BrowserWindow } from 'electron'
 import { DialogManager } from './dialog'
 
 export function registerIpcHandlers(dialog: DialogManager): void {
@@ -18,5 +18,12 @@ export function registerIpcHandlers(dialog: DialogManager): void {
 
   ipcMain.on('dialog:clear', () => {
     dialog.clearHistory()
+  })
+
+  ipcMain.on('window:move', (event: IpcMainEvent, dx: number, dy: number) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+    const [x, y] = win.getPosition()
+    win.setPosition(x + dx, y + dy)
   })
 }

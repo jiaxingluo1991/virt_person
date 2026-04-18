@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSpeakEnd: (cb: () => void) =>
     ipcRenderer.on('speak:end', cb),
   onDialogError: (cb: (msg: string) => void) =>
-    ipcRenderer.on('dialog:error', (_e, msg) => cb(msg))
+    ipcRenderer.on('dialog:error', (_e, msg) => cb(msg)),
+  moveWindow: (dx: number, dy: number) => ipcRenderer.send('window:move', dx, dy)
 })
