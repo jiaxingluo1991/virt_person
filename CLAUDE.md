@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-Ubuntu 桌面虚拟人物应用：Live2D 动漫角色渲染 + 本地 STT/TTS/LLM 语音对话，支持口型同步和表情动作响应。目标平台：Ubuntu 20.04 / 22.04 / 24.04。
+Ubuntu 桌面虚拟人物应用：Live2D 渲染 + 本地 STT/TTS/LLM 语音对话，支持口型同步与动作响应。目标平台：Ubuntu 20.04 / 22.04 / 24.04。
 
 ## 技术栈
 
@@ -10,120 +10,105 @@ Ubuntu 桌面虚拟人物应用：Live2D 动漫角色渲染 + 本地 STT/TTS/LLM
 |------|------|
 | 桌面框架 | Electron 28.x |
 | 语言 | TypeScript |
-| Live2D 渲染 | pixi-live2d-display + pixi.js 7 |
+| Live2D 渲染 | pixi-live2d-display@0.4 + pixi.js@6 |
 | 音频转码 | ffmpeg-static（WebM → WAV） |
 | 打包 | electron-builder（AppImage + deb） |
 | 测试 | Vitest |
 | 构建 | Vite（main/renderer 各一份配置） |
 
-## 整体架构
+## 当前实现状态（已完成）
 
-```
-┌─────────────────────────────────────────────────────┐
-│                  Electron App                        │
-│                                                      │
-│  ┌─────────────┐        ┌──────────────────────┐    │
-│  │  Main Process│        │  Renderer Process    │    │
-│  │  (Node.js)  │◄──IPC──►│  (Chromium)          │    │
-│  │             │        │                      │    │
-│  │ - STT 调用  │        │ - Live2D 渲染         │    │
-│  │ - TTS 调用  │        │   (pixi-live2d)      │    │
-│  │ - LLM 调用  │        │ - 表情/动作控制        │    │
-│  │ - 服务配置   │        │ - 麦克风录音           │    │
-│  │             │        │ - TTS 播放 + 口型同步  │    │
-│  └─────────────┘        └──────────────────────┘    │
-└─────────────────────────────────────────────────────┘
-         │
-         ▼ HTTP
-┌─────────────────────────┐
-│  本地服务（用户自备）     │
-│  - STT 服务              │
-│  - TTS 服务              │
-│  - LLM 服务              │
-└─────────────────────────┘
-```
+### 1) 进程职责
+- Main Process：配置加载、STT/TTS/LLM 调用、音频转码、窗口控制
+- Renderer Process：Live2D 渲染、录音、音频播放、口型同步、模型切换
 
-**核心原则：**
-- Main Process 负责所有 I/O（HTTP 调用外部服务、音频转码）
-- Renderer Process 只负责 Live2D 渲染和音频 I/O（录音/播放）
-- 两者通过 Electron IPC 通信，职责严格分离
-- 外部服务通过 Adapter 层对接，屏蔽接口差异，配置文件驱动
+### 2) Live2D 关键兼容项
+- 使用 `pixi-live2d-display/cubism4` 子路径导入
+- 注册 `Live2DModel.registerTicker(PIXI.Ticker)`
+- `Live2DModel.from(..., { autoInteract: false })`
+- 先动态加载 `live2dcubismcore.min.js`，再动态 import `live2d.ts`
+- 已加入 Cubism Core 6.x `renderOrders` 兼容补丁
 
-## 目录结构
+### 3) 窗口与交互
+- 无边框透明窗口（`frame: false`, `transparent: true`）
+- 启动置顶（`alwaysOnTop: true`）
+- 不自动打开 DevTools
+- 支持鼠标左键拖拽移动窗口（renderer → IPC `window:move`）
 
-```
-src/
-├── main/
-│   ├── index.ts              # Main Process 入口，窗口创建
-│   ├── config.ts             # 配置文件加载与验证
-│   ├── dialog.ts             # 对话流程编排（STT→LLM→TTS）
-│   ├── audio.ts              # 音频转码（WebM→WAV via ffmpeg）
-│   ├── ipc-handlers.ts       # IPC 事件注册
-│   └── adapters/
-│       ├── stt/
-│       │   ├── base.ts       # STTAdapter 接口
-│       │   ├── openai.ts     # OpenAI 兼容 STT
-│       │   └── custom.ts     # 自定义 HTTP STT
-│       ├── tts/
-│       │   ├── base.ts       # TTSAdapter 接口
-│       │   ├── openai.ts     # OpenAI 兼容 TTS
-│       │   └── custom.ts     # 自定义 HTTP TTS
-│       └── llm/
-│           ├── base.ts       # LLMAdapter 接口
-│           ├── openai.ts     # OpenAI 兼容 LLM
-│           └── custom.ts     # 自定义 HTTP LLM
-└── renderer/
-    ├── index.html            # 渲染进程 HTML 入口
-    ├── index.ts              # 渲染进程入口，IPC 监听
-    ├── live2d.ts             # Live2D 模型加载与控制
-    ├── recorder.ts           # 麦克风录音 + VAD
-    └── audio-player.ts       # TTS 播放 + 口型同步
-```
+### 4) 模型与视图切换
+- 支持快捷键切换模型：`1/2/3/4`
+  - 1 = Miku Pro JP
+  - 2 = Miku
+  - 3 = Hiyori Pro EN
+  - 4 = Miara Pro EN
+- 支持视图切换：`8` 全身 / `9` 半身
+- 模型与视图选择持久化在 `localStorage`
 
-## IPC 通信协议
+### 5) 动作系统
+- 启动时读取 `.model3.json` 的 `Motions`，自动生成动作画像
+- 说话动作池 + 待机动作池（按权重随机）
+- 兼容分组命名差异：`Flick` / `Flic` / `FlickUp` / `FlickDown` / `Tap@Body` / `Flick@Body`
+
+## IPC 通信协议（当前）
 
 | 事件 | 方向 | 说明 |
 |------|------|------|
 | `audio:data` | Renderer → Main | 录音完成，发送 WebM buffer |
-| `dialog:response` | Main → Renderer | LLM 回复文字 |
 | `tts:audio` | Main → Renderer | TTS 音频 buffer |
-| `speak:start` | Main → Renderer | 开始播放，触发口型同步 |
-| `speak:end` | Main → Renderer | 播放结束，切回 Idle |
-| `live2d:expression` | Main → Renderer | 设置表情 |
-| `live2d:motion` | Main → Renderer | 触发动作 |
+| `speak:start` | Main → Renderer | 开始说话 |
+| `speak:end` | Main → Renderer | 说话结束 |
+| `dialog:error` | Main → Renderer | 对话链路错误 |
+| `dialog:clear` | Renderer → Main | 清空上下文 |
+| `window:move` | Renderer → Main | 拖拽移动窗口 |
 
-## 对话完整流程
+## 目录结构
 
+```text
+src/
+├── main/
+│   ├── index.ts
+│   ├── config.ts
+│   ├── dialog.ts
+│   ├── audio.ts
+│   ├── ipc-handlers.ts
+│   ├── preload.ts
+│   └── adapters/
+└── renderer/
+    ├── index.html
+    ├── index.ts
+    ├── live2d.ts
+    ├── recorder.ts
+    └── audio-player.ts
 ```
-1. 应用启动 → 加载 Live2D 模型 → 播放 Idle 动作
-2. 用户按住空格键 → 开始录音
-3. 松开空格 / VAD 静音检测触发 → 停止录音 → 发送音频给 STT
-4. STT 返回文字 → 发送给 LLM
-5. LLM 返回回复 → 发送给 TTS
-6. TTS 返回音频 → 触发 speak_start → 播放音频 + 口型同步
-7. 音频播放完毕 → 触发 speak_end → 切回 Idle
-8. 回到步骤 2
-```
 
-## Adapter 层设计
+## 构建与资源约定
 
-所有外部服务通过统一接口对接，支持两种类型：
+- `vite.renderer.config.ts` 设置 `base: './'`，适配 `file://`
+- 构建后自动复制 `resources/cubism-core/live2dcubismcore.min.js` 到 `dist/renderer/cubism-core/`
+- 模型资源放在 `resources/models/<model_name>/`
 
-- `openai_compatible`：标准 OpenAI HTTP 接口
-- `custom`：自定义 HTTP 接口，通过 `body_template` 配置请求体，`{{text}}` 为占位符
+## 未完成事项（待做）
 
-配置文件 `config.json` 驱动 Adapter 选择，无需改代码切换服务。
+1. **模型清单配置化**
+   - 当前模型列表写死在 `src/renderer/index.ts`
+   - 建议改为读取 `resources/models/manifest.json`，避免每次改代码
 
-## Ubuntu 兼容性
+2. **窗口尺寸与位置持久化**
+   - 当前支持拖拽，但重启后不保留上次位置
+   - 建议持久化到本地配置文件
 
-| 项目 | 20.04 | 22.04 | 24.04 |
-|------|-------|-------|-------|
-| 音频系统 | PulseAudio | PulseAudio/PipeWire | PipeWire |
-| Node.js | 需 NodeSource 安装 18+ | 需 NodeSource 安装 18+ | 内置 18.x |
-| Electron 28 | 需补装系统库 | 开箱即用 | 开箱即用 |
+3. **置顶开关**
+   - 当前固定 `alwaysOnTop: true`
+   - 建议增加快捷键或配置项动态切换
 
-## 构建配置
+4. **模型动态扫描**
+   - 当前仅支持预定义快捷键 1/2/3/4
+   - 建议启动时扫描 `resources/models/*/*.model3.json` 自动注册
 
-- `vite.main.config.ts`：将 main 进程编译为 CommonJS，external 掉 electron 和 Node 内置模块
-- `vite.renderer.config.ts`：将 renderer 打包为浏览器 bundle
-- `electron-builder.yml`：打包为 AppImage + deb，resources/ 目录随包分发
+5. **打包与发布验证**
+   - 需做一次完整 AppImage/.deb 实机回归
+   - 校验透明窗口、模型加载、语音链路在打包后行为一致
+
+6. **语音链路稳定性测试**
+   - 增加端到端测试（STT→LLM→TTS）
+   - 覆盖服务异常、超时和恢复场景

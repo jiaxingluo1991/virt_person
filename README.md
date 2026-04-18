@@ -30,16 +30,18 @@ npm install
 
 ### Live2D 资源（手动准备）
 
-1. 下载 [CubismSdkForWeb-4-r.7](https://www.live2d.com/en/sdk/download/web/)
+1. 下载 Cubism SDK for Web（Core）
 2. 将 `Core/live2dcubismcore.min.js` 放到 `resources/cubism-core/`
-3. 将示例模型（如 `Samples/Resources/Haru/`）放到 `resources/models/Haru/`
+3. 将模型目录放到 `resources/models/<model_name>/`
+
+> 当前项目使用 `pixi-live2d-display@0.4` + `pixi.js@6`。不要升级到 pixi.js v7。
 
 ## 配置
 
 复制配置示例并填入本地服务地址：
 ```bash
 cp config.example.json config.json
-# 编辑 config.json，填入 STT/TTS/LLM 服务的实际 URL
+# 编辑 config.json，填入 STT/TTS/LLM 服务 URL
 ```
 
 ## 运行
@@ -53,6 +55,24 @@ npm run dev:renderer
 npm run electron
 ```
 
+## 当前交互快捷键
+
+- `Space`：按住录音，松开后发送 STT
+- `1/2/3/4`：切换模型
+  - `1` = Miku Pro JP
+  - `2` = Miku
+  - `3` = Hiyori Pro EN
+  - `4` = Miara Pro EN
+- `8`：全身视图
+- `9`：半身视图
+- 鼠标左键拖拽：移动透明窗口位置
+
+## 当前窗口行为
+
+- 无边框透明窗口（`frame: false`, `transparent: true`）
+- 启动即置顶（`alwaysOnTop: true`）
+- 不再自动打开 DevTools
+
 ## 构建打包
 
 ```bash
@@ -65,3 +85,11 @@ npm run pack
 ```bash
 npm test
 ```
+
+## 已知说明
+
+- 部分模型没有 `Motions` 配置，只能静态展示（无法播放动作）
+- 部分模型口型参数名不一致，项目已兼容常见参数：
+  - `PARAM_MOUTH_OPEN_Y`
+  - `ParamMouthOpenY`
+- 构建产物体积较大是正常现象（Live2D runtime + 模型资源）
