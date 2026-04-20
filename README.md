@@ -4,13 +4,28 @@ Ubuntu 桌面虚拟人物应用。Live2D 动漫角色 + 本地语音对话（STT
 
 ## 依赖
 
-### 系统依赖
+### Node.js 版本管理（推荐 nvm）
 
-**Node.js 18+**（Ubuntu 20.04 需通过 NodeSource 安装）：
+使用 nvm 管理 Node.js 版本，避免系统环境污染：
+
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs
+# 安装 nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+# 重新加载 shell（或新开终端）
+source ~/.bashrc  # 或 ~/.zshrc
+
+# 安装并使用项目指定版本（读取 .nvmrc）
+nvm install
+nvm use
 ```
+
+项目根目录已有 `.nvmrc`，指定 Node.js 18。后续进入项目目录执行 `nvm use` 即可切换。
+
+> 如果不用 nvm，也可通过 NodeSource 手动安装（Ubuntu 20.04）：
+> ```bash
+> curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+> sudo apt install -y nodejs
+> ```
 
 **Ubuntu 20.04 额外系统库：**
 ```bash
