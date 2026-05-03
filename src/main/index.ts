@@ -4,8 +4,8 @@ import { registerIpcHandlers } from './ipc-handlers'
 
 function createWindow(resourcesPath: string): BrowserWindow {
   const win = new BrowserWindow({
-    width: 1000,
-    height: 800,
+    width: 300,
+    height: 700,
     frame: false,
     transparent: true,
     alwaysOnTop: true,

@@ -83,18 +83,19 @@ export class Live2DController {
 
     this.model.x = this.app.renderer.width / 2
 
-    const baseScale = Math.min(
-      this.app.renderer.width / this.model.width,
-      this.app.renderer.height / this.model.height
-    )
-
     if (this.viewMode === 'half') {
+      // For half-body: scale to fill height; width clips naturally since the window is narrow
+      const baseScale = this.app.renderer.height / this.model.height
       this.model.y = this.app.renderer.height * 0.72
       this.model.scale.set(baseScale * 1.35)
       return
     }
 
-    // full body
+    // full body: fit entire model within the window
+    const baseScale = Math.min(
+      this.app.renderer.width / this.model.width,
+      this.app.renderer.height / this.model.height
+    )
     this.model.y = this.app.renderer.height * 0.55
     this.model.scale.set(baseScale * 0.95)
   }
