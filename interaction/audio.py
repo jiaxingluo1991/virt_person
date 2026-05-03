@@ -50,8 +50,8 @@ class AudioStream:
         self._stream = None
 
     def _callback(self, indata, frames, time, status):
-        # indata shape: (frames, channels)，取第一声道并重采样到 16kHz
         chunk = indata[:, 0].copy()
+        chunk = np.clip(chunk * config.AUDIO_INPUT_GAIN, -1.0, 1.0)
         self._queue.put(_resample(chunk))
 
     def start(self):

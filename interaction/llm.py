@@ -6,6 +6,7 @@ llm.py - LLM 调用模块（OpenClaw / 龙虾）
 """
 
 import re
+import httpx
 from openai import OpenAI
 import config
 
@@ -34,6 +35,7 @@ class LLMClient:
             default_headers={
                 "x-openclaw-session-key": config.LLM_SESSION_KEY,
             },
+            http_client=httpx.Client(trust_env=False),
         )
         self._history: list[dict] = []
 
@@ -55,13 +57,10 @@ class LLMClient:
             messages=messages,
             max_tokens=config.LLM_MAX_TOKENS,
             timeout=config.LLM_TIMEOUT,
-            stream=True,
+            stream=False,
         )
 
-        full_reply = ""
-        for chunk in response:
-            delta = chunk.choices[0].delta.content or ""
-            full_reply += delta
+        full_reply = response.choices[0].message.content or ""
 
         self._history.append({"role": "user", "content": user_text})
         self._history.append({"role": "assistant", "content": full_reply})

@@ -94,25 +94,29 @@ async function main() {
       if (msg.type === 'state') {
         switch (msg.state) {
           case 'idle':
-            live2d.onSpeakEnd()
+            live2d.setState('idle')
             setReadyStatus()
             break
+          case 'triggered':
+            live2d.setState('triggered')
+            statusEl.textContent = '已唤醒...'
+            break
           case 'listening':
+            live2d.setState('listening')
             statusEl.textContent = '聆听中...'
-            live2d.setExpression('normal')
             break
           case 'processing':
+            live2d.setState('processing')
             statusEl.textContent = '思考中...'
-            live2d.playMotion('Idle', 0)
             break
         }
       } else if (msg.type === 'lip_sync' && msg.envelope && msg.duration_ms) {
         live2d.playEnvelope(msg.envelope, msg.duration_ms)
       } else if (msg.type === 'speak_start') {
+        live2d.setState('speaking')
         statusEl.textContent = '说话中...'
-        live2d.onSpeakStart()
       } else if (msg.type === 'speak_end') {
-        live2d.onSpeakEnd()
+        live2d.setState('idle')
         setReadyStatus()
       }
     }
@@ -136,6 +140,18 @@ async function main() {
     if (e.code === 'Digit4') { localStorage.setItem('live2d:model', 'miara_pro_en'); location.reload() }
     if (e.code === 'Digit8') { localStorage.setItem('live2d:view', 'full'); location.reload() }
     if (e.code === 'Digit9') { localStorage.setItem('live2d:view', 'half'); location.reload() }
+
+    // ── 动作调试键（仅 hiyori_pro_en）──────────────────────
+    if (e.code === 'KeyQ') { live2d.playMotion('Idle', 0);      statusEl.textContent = 'DEBUG: Idle[0]' }
+    if (e.code === 'KeyW') { live2d.playMotion('Idle', 1);      statusEl.textContent = 'DEBUG: Idle[1]' }
+    if (e.code === 'KeyE') { live2d.playMotion('Idle', 2);      statusEl.textContent = 'DEBUG: Idle[2]' }
+    if (e.code === 'KeyA') { live2d.playMotion('Tap', 0);       statusEl.textContent = 'DEBUG: Tap[0]' }
+    if (e.code === 'KeyS') { live2d.playMotion('Tap', 1);       statusEl.textContent = 'DEBUG: Tap[1]' }
+    if (e.code === 'KeyD') { live2d.playMotion('Tap@Body', 0);  statusEl.textContent = 'DEBUG: Tap@Body[0]' }
+    if (e.code === 'KeyZ') { live2d.playMotion('Flick', 0);     statusEl.textContent = 'DEBUG: Flick[0]' }
+    if (e.code === 'KeyX') { live2d.playMotion('FlickDown', 0); statusEl.textContent = 'DEBUG: FlickDown[0]' }
+    if (e.code === 'KeyC') { live2d.playMotion('FlickUp', 0);   statusEl.textContent = 'DEBUG: FlickUp[0]' }
+    if (e.code === 'KeyV') { live2d.playMotion('Flick@Body', 0);statusEl.textContent = 'DEBUG: Flick@Body[0]' }
   })
 
   // ── 拖拽移动窗口 ──────────────────────────────────────────

@@ -21,9 +21,9 @@ run_in_terminal() {
     local title="$1"
     local cmd="$2"
     if command -v gnome-terminal &>/dev/null; then
-        gnome-terminal --title="$title" -- bash -c "$cmd; echo; echo '--- 进程已退出，按 Enter 关闭 ---'; read"
+        gnome-terminal --title="$title" -- bash -c "$cmd"
     elif command -v xterm &>/dev/null; then
-        xterm -title "$title" -e bash -c "$cmd; echo; echo '--- 进程已退出，按 Enter 关闭 ---'; read" &
+        xterm -title "$title" -e bash -c "$cmd" &
     else
         echo "  ✗ 未找到终端模拟器（gnome-terminal 或 xterm）"
         return 1

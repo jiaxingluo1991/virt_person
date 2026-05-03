@@ -71,14 +71,15 @@ class TTSClient:
         envelope = _compute_envelope(audio, self._sample_rate, fps=30)
         duration_ms = int(len(audio) / self._sample_rate * 1000)
 
-        ws = get_server()
-        ws.send({"type": "lip_sync", "envelope": envelope, "duration_ms": duration_ms})
-        ws.send({"type": "speak_start"})
-
+        # 先做耗时的 resample，再发 WS 消息，确保动画和音频同步启动
         audio = _resample(audio, self._sample_rate, config.DEVICE_SAMPLE_RATE)
         audio = np.clip(audio * config.AUDIO_OUTPUT_GAIN, -1.0, 1.0)
-
         device = _find_output_device(config.AUDIO_DEVICE_NAME)
+
+        ws = get_server()
+        ws.send({"type": "speak_start"})
+        ws.send({"type": "lip_sync", "envelope": envelope, "duration_ms": duration_ms})
+
         sd.play(audio, samplerate=config.DEVICE_SAMPLE_RATE, device=device)
         sd.wait()
 

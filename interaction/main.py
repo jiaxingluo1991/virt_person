@@ -113,6 +113,7 @@ def main():
                     accumulated_texts = []
                     recent_tts = []
                     llm.reset()
+                    ws.send({"type": "state", "state": "triggered"})
                     t = _speak(tts, stream, "你好，请问有什么事情吗？")
                     recent_tts = [t]
                     set_state(State.LISTENING)
@@ -173,6 +174,7 @@ def main():
                 print(f"\n💬 用户：{full_text}")
                 t = _speak(tts, stream, "收到信息，请让我思考片刻")
                 recent_tts = [t]
+                ws.send({"type": "state", "state": "processing"})
 
                 print("🤖 龙虾思考中...")
                 t0 = time.time()

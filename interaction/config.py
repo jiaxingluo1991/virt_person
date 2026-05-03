@@ -6,13 +6,14 @@ MODELS_DIR = os.path.join(BASE_DIR, "models")
 
 # ── 音频参数 ──────────────────────────────────────────────
 SAMPLE_RATE = 16000       # Hz，唤醒词检测和 STT 要求 16kHz
-DEVICE_SAMPLE_RATE = 48000  # Yundea 8MICA 硬件采样率
+DEVICE_SAMPLE_RATE = 48000  # Yundea 8MICA 实际支持的采样率（仅 48kHz）
 CHANNELS = 1              # 单声道
 CHUNK_SIZE = 512          # samples per block @ 16kHz，约 32ms
 DTYPE = "float32"
 
 # 音频设备（用设备名匹配，避免 USB 重插后设备号变化）
 AUDIO_DEVICE_NAME = "Yundea 8MICA"  # 模糊匹配，大小写不敏感
+AUDIO_INPUT_GAIN  = 50.0             # 录音增益，Yundea 8MICA 原始信号极弱需大幅放大
 AUDIO_OUTPUT_GAIN = 50.0             # 播放增益，>1 放大，<1 缩小
 
 # ── 唤醒词检测（sherpa-onnx）─────────────────────────────
@@ -25,7 +26,7 @@ WAKE_WORD_JOINER  = os.path.join(WAKE_WORD_MODEL_DIR, "joiner-epoch-12-avg-2-chu
 WAKE_WORD_TOKENS  = os.path.join(WAKE_WORD_MODEL_DIR, "tokens.txt")
 WAKE_WORD_KEYWORDS_FILE = os.path.join(WAKE_WORD_MODEL_DIR, "keywords_custom.txt")
 WAKE_WORDS        = "你好龙虾"   # 仅用于显示
-WAKE_WORD_THRESHOLD = 0.25      # 检测阈值，越高越严格
+WAKE_WORD_THRESHOLD = 0.1       # 检测阈值，越高越严格
 
 # ── VAD（silero-vad）─────────────────────────────────────
 VAD_THRESHOLD        = 0.5    # 人声概率阈值
@@ -41,10 +42,20 @@ STT_LANGUAGE     = "zh"
 # ── LLM（OpenClaw / 龙虾）────────────────────────────────────
 LLM_BASE_URL    = "http://192.168.3.61:18789/v1"
 LLM_API_KEY     = "21986d6065866ad6ad32a6c342828a5f330b9e2666428f55"
-LLM_MODEL       = "openclaw"
+LLM_MODEL       = "openclaw/default"
 LLM_MAX_TOKENS  = 8192
-LLM_SESSION_KEY = "main"   # x-openclaw-session-key header
-LLM_SYSTEM_PROMPT = ""     # 系统提示词通过 OpenClaw session 配置，留空
+LLM_SESSION_KEY = "agent:main:main"   # x-openclaw-session-key header
+# 系统提示词：要求龙虾每次回复末尾附带 [[tts:text]] 口语摘要块
+# 留空则不注入（依赖 OpenClaw session 配置）
+LLM_SYSTEM_PROMPT = (
+    "Voice (TTS) is enabled.\n"
+    "Every reply MUST end with a [[tts:text]] block containing a 2-3 sentence spoken summary.\n"
+    "The summary must be natural spoken Chinese, no markdown, no lists, under 150 characters.\n"
+    "Format:\n"
+    "[[tts:text]]\n"
+    "口语摘要内容\n"
+    "[[/tts:text]]"
+)
 
 # ── 语音合成（CosyVoice2）────────────────────────────────
 TTS_MODEL_DIR  = os.path.join(MODELS_DIR, "CosyVoice2-0.5B")
