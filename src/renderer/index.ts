@@ -1,20 +1,13 @@
-import { AudioPlayer } from './audio-player'
-import { Recorder } from './recorder'
-
 declare global {
   interface Window {
     electronAPI: {
       resourcesPath: string
-      sendAudio: (buf: ArrayBuffer) => void
-      clearDialog: () => void
-      onTtsAudio: (cb: (buf: ArrayBuffer) => void) => void
-      onSpeakStart: (cb: () => void) => void
-      onSpeakEnd: (cb: () => void) => void
-      onDialogError: (cb: (msg: string) => void) => void
       moveWindow: (dx: number, dy: number) => void
     }
   }
 }
+
+const WS_URL = 'ws://127.0.0.1:8766'
 
 async function main() {
   const container = document.getElementById('canvas-container')!
@@ -55,7 +48,6 @@ async function main() {
   const savedViewMode = localStorage.getItem('live2d:view') as ViewMode | null
   const activeViewMode: ViewMode = savedViewMode === 'full' ? 'full' : 'half'
 
-  // 加载 Cubism Core（构建时已复制到 dist/renderer/cubism-core/）
   await new Promise<void>((resolve, reject) => {
     const script = document.createElement('script')
     script.src = './cubism-core/live2dcubismcore.min.js'
@@ -64,7 +56,6 @@ async function main() {
     document.head.appendChild(script)
   })
 
-  // Cubism Core 加载完后再动态导入 Live2DController
   const { Live2DController } = await import('./live2d')
 
   const modelPath = `file://${resourcesPath}/${activeModel.relativePath}`
@@ -72,7 +63,7 @@ async function main() {
   const live2d = new Live2DController(container, activeViewMode)
   const setReadyStatus = () => {
     const viewText = activeViewMode === 'half' ? '半身' : '全身'
-    statusEl.textContent = `模型: ${activeModel.name} | 视图: ${viewText} | 空格说话 | 1/2/3/4切模型 | 8全身 9半身`
+    statusEl.textContent = `${activeModel.name} | ${viewText} | 待唤醒 | 1/2/3/4切模型 | 8全身 9半身`
   }
   try {
     await live2d.loadModel(modelPath)
@@ -83,79 +74,71 @@ async function main() {
     return
   }
 
-  const player = new AudioPlayer((volume) => live2d.setLipSync(volume))
-  const recorder = new Recorder({ silenceThreshold: 0.01, silenceDurationMs: 1500 })
+  // ── WebSocket：连接 interaction/main.py ──────────────────
+  function connectWS() {
+    const ws = new WebSocket(WS_URL)
 
-  recorder.onAudioReady((buffer) => {
-    statusEl.textContent = '识别中...'
-    window.electronAPI.sendAudio(buffer)
-  })
+    ws.onopen = () => {
+      console.log('WebSocket connected to interaction server')
+      statusEl.textContent = `${activeModel.name} | 待唤醒`
+    }
 
-  window.electronAPI.onTtsAudio((buf) => {
-    statusEl.textContent = '说话中...'
-    live2d.onSpeakStart()
-    player.play(buf, () => {
-      setReadyStatus()
-      live2d.onSpeakEnd()
-      live2d.setLipSync(0)
-      window.electronAPI.onSpeakEnd(() => {})
-    })
-  })
+    ws.onmessage = (event) => {
+      let msg: { type: string; state?: string; envelope?: number[]; duration_ms?: number }
+      try {
+        msg = JSON.parse(event.data)
+      } catch {
+        return
+      }
 
-  window.electronAPI.onSpeakStart(() => {
-    live2d.setExpression('happy')
-  })
+      if (msg.type === 'state') {
+        switch (msg.state) {
+          case 'idle':
+            live2d.onSpeakEnd()
+            setReadyStatus()
+            break
+          case 'listening':
+            statusEl.textContent = '聆听中...'
+            live2d.setExpression('normal')
+            break
+          case 'processing':
+            statusEl.textContent = '思考中...'
+            live2d.playMotion('Idle', 0)
+            break
+        }
+      } else if (msg.type === 'lip_sync' && msg.envelope && msg.duration_ms) {
+        live2d.playEnvelope(msg.envelope, msg.duration_ms)
+      } else if (msg.type === 'speak_start') {
+        statusEl.textContent = '说话中...'
+        live2d.onSpeakStart()
+      } else if (msg.type === 'speak_end') {
+        live2d.onSpeakEnd()
+        setReadyStatus()
+      }
+    }
 
-  window.electronAPI.onDialogError((msg) => {
-    statusEl.textContent = `错误: ${msg}`
-    live2d.playMotion('Idle', 0)
-  })
+    ws.onclose = () => {
+      console.log('WebSocket disconnected, retrying in 3s...')
+      statusEl.textContent = `${activeModel.name} | 未连接语音服务`
+      setTimeout(connectWS, 3000)
+    }
 
+    ws.onerror = () => ws.close()
+  }
+
+  connectWS()
+
+  // ── 键盘：切换模型和视图 ──────────────────────────────────
   document.addEventListener('keydown', (e) => {
-    if (e.code === 'Digit1') {
-      localStorage.setItem('live2d:model', 'miku_pro_jp')
-      location.reload()
-      return
-    }
-    if (e.code === 'Digit2') {
-      localStorage.setItem('live2d:model', 'miku')
-      location.reload()
-      return
-    }
-    if (e.code === 'Digit3') {
-      localStorage.setItem('live2d:model', 'hiyori_pro_en')
-      location.reload()
-      return
-    }
-
-    if (e.code === 'Digit4') {
-      localStorage.setItem('live2d:model', 'miara_pro_en')
-      location.reload()
-      return
-    }
-
-    if (e.code === 'Digit8') {
-      localStorage.setItem('live2d:view', 'full')
-      location.reload()
-      return
-    }
-    if (e.code === 'Digit9') {
-      localStorage.setItem('live2d:view', 'half')
-      location.reload()
-      return
-    }
-
-    if (e.code === 'Space' && !e.repeat) {
-      recorder.start()
-      statusEl.textContent = '录音中...'
-      live2d.setExpression('normal')
-    }
-  })
-  document.addEventListener('keyup', (e) => {
-    if (e.code === 'Space') recorder.stop()
+    if (e.code === 'Digit1') { localStorage.setItem('live2d:model', 'miku_pro_jp'); location.reload() }
+    if (e.code === 'Digit2') { localStorage.setItem('live2d:model', 'miku'); location.reload() }
+    if (e.code === 'Digit3') { localStorage.setItem('live2d:model', 'hiyori_pro_en'); location.reload() }
+    if (e.code === 'Digit4') { localStorage.setItem('live2d:model', 'miara_pro_en'); location.reload() }
+    if (e.code === 'Digit8') { localStorage.setItem('live2d:view', 'full'); location.reload() }
+    if (e.code === 'Digit9') { localStorage.setItem('live2d:view', 'half'); location.reload() }
   })
 
-  // 拖拽移动窗口（鼠标左键按住拖动）
+  // ── 拖拽移动窗口 ──────────────────────────────────────────
   let dragStart: { x: number; y: number } | null = null
   document.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return

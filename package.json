@@ -1,7 +1,7 @@
 {
   "name": "virt-person",
   "version": "1.0.0",
-  "description": "Ubuntu 桌面虚拟人物应用，Live2D + 本地 STT/TTS/LLM 语音对话",
+  "description": "Ubuntu 桌面虚拟人物应用，Live2D 视觉前端 + 语音交互管道",
   "main": "dist/main/index.js",
   "scripts": {
     "dev:main": "vite build --config vite.main.config.ts --watch",
@@ -20,7 +20,6 @@
     "vitest": "^1.0.0"
   },
   "dependencies": {
-    "ffmpeg-static": "^5.2.0",
     "pixi-live2d-display": "^0.4.0",
     "pixi.js": "^6.5.10"
   }

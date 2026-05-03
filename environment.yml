@@ -1,0 +1,27 @@
+name: virt-person
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10
+  - pip
+
+  - pip:
+    - sounddevice
+    - numpy
+    - scipy
+    - sherpa-onnx
+    - faster-whisper
+    - openai
+    - websockets>=12.0
+    - requests
+    - fastapi
+    - uvicorn
+    - pydantic
+    # MeloTTS 有 bug，需从 GitHub 安装（install.sh 已处理）：
+    # pip install git+https://github.com/myshell-ai/MeloTTS.git
+    # python -m unidic download
+    #
+    # PyTorch 需按 GPU/CUDA 版本单独安装（install.sh 已处理）：
+    # pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128

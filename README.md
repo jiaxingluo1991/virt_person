@@ -1,92 +1,149 @@
 # virt-person
 
-Ubuntu 桌面虚拟人物应用。Live2D 动漫角色 + 本地语音对话（STT/TTS/LLM）。
+Ubuntu 桌面虚拟人物应用。Live2D 动漫角色作为视觉前端，配合本地语音交互管道（唤醒词 + STT + LLM + TTS）实现完整的语音对话体验。
 
-## 依赖
+## 架构
 
-### Node.js 版本管理（推荐 nvm）
+```
+interaction/ (Python)                    src/ (Electron)
+├── 唤醒词检测 (sherpa-onnx)              ├── Live2D 渲染
+├── VAD 录音 (silero-vad)    WebSocket   ├── 状态动画
+├── STT (faster-whisper)   ──────────▶  ├── 口型同步
+├── LLM (Ollama HTTP)                   └── 透明悬浮窗口
+└── TTS (MeloTTS) + 音频播放
+```
 
-使用 nvm 管理 Node.js 版本，避免系统环境污染：
+说「你好龙虾」唤醒 → Python 管道处理全部语音逻辑 → 通过 WebSocket 推送状态和振幅包络 → Electron 驱动 Live2D 动画和口型。
+
+---
+
+## 环境准备
+
+### Node.js（Electron 前端）
 
 ```bash
 # 安装 nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-# 重新加载 shell（或新开终端）
-source ~/.bashrc  # 或 ~/.zshrc
+source ~/.bashrc
 
-# 安装并使用项目指定版本（读取 .nvmrc）
-nvm install
-nvm use
-```
+# 安装项目指定版本（读取 .nvmrc）
+nvm install && nvm use
 
-项目根目录已有 `.nvmrc`，指定 Node.js 18。后续进入项目目录执行 `nvm use` 即可切换。
-
-> 如果不用 nvm，也可通过 NodeSource 手动安装（Ubuntu 20.04）：
-> ```bash
-> curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-> sudo apt install -y nodejs
-> ```
-
-**Ubuntu 20.04 额外系统库：**
-```bash
-sudo apt install libgbm1 libnss3 libatk-bridge2.0-0 libxss1
-```
-
-**Ubuntu 22.04 音频（PipeWire 用户）：**
-```bash
-sudo apt install pipewire-pulse
-```
-
-### npm 依赖
-
-```bash
+# 安装依赖
 npm install
 ```
 
-### Live2D 资源（手动准备）
+Ubuntu 系统库：
+```bash
+# Ubuntu 20.04
+sudo apt install libgbm1 libnss3 libatk-bridge2.0-0 libxss1
+# Ubuntu 22.04（PipeWire 用户）
+sudo apt install pipewire-pulse
+```
 
-1. 下载 Cubism SDK for Web（Core）
-2. 将 `Core/live2dcubismcore.min.js` 放到 `resources/cubism-core/`
-3. 将模型目录放到 `resources/models/<model_name>/`
+### Python（语音交互管道）
 
-> 当前项目使用 `pixi-live2d-display@0.4` + `pixi.js@6`。不要升级到 pixi.js v7。
+```bash
+# 一键安装（推荐）
+bash install.sh
+```
+
+或手动：
+```bash
+conda create -n virt-person python=3.10 -y
+conda activate virt-person
+pip install sounddevice numpy scipy sherpa-onnx faster-whisper openai websockets fastapi uvicorn
+pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128  # 按实际 CUDA 版本调整
+pip install git+https://github.com/myshell-ai/MeloTTS.git
+python -m unidic download
+```
+
+系统依赖：
+```bash
+sudo apt install libportaudio2 mecab libmecab-dev mecab-ipadic-utf8
+```
+
+### 模型文件（手动下载）
+
+```bash
+# 唤醒词模型（sherpa-onnx）
+cd interaction/models
+wget https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01.tar.bz2
+tar xf sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01.tar.bz2
+
+# STT 模型（faster-whisper large-v3）
+hf download Systran/faster-whisper-large-v3 --local-dir interaction/models/faster-whisper-large-v3
+```
+
+### Live2D 资源
+
+1. 下载 Cubism SDK for Web，将 `Core/live2dcubismcore.min.js` 放到 `resources/cubism-core/`
+2. 将模型目录放到 `resources/models/<model_name>/`
+
+---
 
 ## 配置
 
-复制配置示例并填入本地服务地址：
+编辑 `interaction/config.py`，按需调整：
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `LLM_BASE_URL` | Ollama 服务地址 | `http://192.168.3.41:11434/v1` |
+| `LLM_MODEL` | 模型名称 | `qwen3.5:9b` |
+| `AUDIO_DEVICE_NAME` | 音频设备名（模糊匹配） | `Yundea 8MICA` |
+| `WAKE_WORD_THRESHOLD` | 唤醒词灵敏度（越低越灵敏） | `0.25` |
+| `AUDIO_OUTPUT_GAIN` | 播放音量增益 | `50.0` |
+
+---
+
+## 启动
+
 ```bash
-cp config.example.json config.json
-# 编辑 config.json，填入 STT/TTS/LLM 服务 URL
+./start.sh
 ```
 
-## 运行
+或手动：
 
 ```bash
-# 开发模式（两个终端分别运行）
-npm run dev:main
-npm run dev:renderer
+# 终端 1：语音交互管道（含 MeloTTS）
+conda activate virt-person
+python interaction/main.py
 
-# 启动 Electron
-npm run electron
+# 终端 2：虚拟人物前端
+npm run build && npm run electron
 ```
 
-## 当前交互快捷键
+---
 
-- `Space`：按住录音，松开后发送 STT
-- `1/2/3/4`：切换模型
-  - `1` = Miku Pro JP
-  - `2` = Miku
-  - `3` = Hiyori Pro EN
-  - `4` = Miara Pro EN
-- `8`：全身视图
-- `9`：半身视图
-- 鼠标左键拖拽：移动透明窗口位置
+## 使用方式
 
-## 当前窗口行为
+1. 说「**你好龙虾**」唤醒，听到提示音后开始说话
+2. 停顿 **5 秒**自动提交，或说「**好了**」「**就这样**」等结束语
+3. 等待 LLM 回复并播放语音，Live2D 角色同步口型动画
+4. 播放完毕自动返回待机
 
-- 无边框透明窗口（`frame: false`, `transparent: true`）
-- 启动即置顶（`alwaysOnTop: true`）
-- 不再自动打开 DevTools
+### 快捷键
+
+| 键 | 功能 |
+|----|------|
+| `1/2/3/4` | 切换模型（Miku Pro JP / Miku / Hiyori Pro EN / Miara Pro EN） |
+| `8` | 全身视图 |
+| `9` | 半身视图 |
+| 鼠标左键拖拽 | 移动透明窗口 |
+
+---
+
+## 常见问题
+
+**TTS 服务未启动**：先运行步骤 2
+
+**LLM 超时**：检查 Ollama 服务是否可达
+
+**唤醒词不灵敏**：调低 `config.py` 中 `WAKE_WORD_THRESHOLD`（试 0.15）
+
+**Live2D 无动画**：确认 WebSocket 已连接（状态栏显示「待唤醒」而非「未连接语音服务」）
+
+---
 
 ## 构建打包
 
@@ -98,13 +155,6 @@ npm run pack
 ## 测试
 
 ```bash
-npm test
+npm test                          # Electron 前端测试
+cd interaction && python -m pytest test/  # Python 管道测试
 ```
-
-## 已知说明
-
-- 部分模型没有 `Motions` 配置，只能静态展示（无法播放动作）
-- 部分模型口型参数名不一致，项目已兼容常见参数：
-  - `PARAM_MOUTH_OPEN_Y`
-  - `ParamMouthOpenY`
-- 构建产物体积较大是正常现象（Live2D runtime + 模型资源）

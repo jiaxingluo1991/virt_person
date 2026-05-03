@@ -1,8 +1,5 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
-import { loadConfig } from './config'
-import { createAdapters } from './adapters/factory'
-import { DialogManager } from './dialog'
 import { registerIpcHandlers } from './ipc-handlers'
 
 function createWindow(resourcesPath: string): BrowserWindow {
@@ -30,19 +27,11 @@ function createWindow(resourcesPath: string): BrowserWindow {
 }
 
 app.whenReady().then(() => {
-  const isPackaged = app.isPackaged
-  const configPath = isPackaged
-    ? join(process.resourcesPath, 'config.json')
-    : join(process.cwd(), 'config.json')
-
-  const resourcesPath = isPackaged
+  const resourcesPath = app.isPackaged
     ? process.resourcesPath
     : join(process.cwd(), 'resources')
 
-  const cfg = loadConfig(configPath)
-  const { stt, tts, llm } = createAdapters(cfg)
-  const dialog = new DialogManager(stt, tts, llm)
-  registerIpcHandlers(dialog)
+  registerIpcHandlers()
   createWindow(resourcesPath)
 })
 

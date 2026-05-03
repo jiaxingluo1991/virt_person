@@ -214,9 +214,30 @@ export class Live2DController {
   setLipSync(volume: number): void {
     if (!this.model) return
     const v = Math.min(1, volume * 2)
-
-    // 兼容不同命名风格（miku 与 miku_pro_jp）
     this.model.internalModel.coreModel.setParameterValueById('PARAM_MOUTH_OPEN_Y', v)
     this.model.internalModel.coreModel.setParameterValueById('ParamMouthOpenY', v)
+  }
+
+  playEnvelope(envelope: number[], durationMs: number): void {
+    if (!this.model || envelope.length === 0) return
+
+    const frameMs = durationMs / envelope.length
+    let index = 0
+    let lastTime = performance.now()
+
+    const tick = () => {
+      if (index >= envelope.length) {
+        this.setLipSync(0)
+        return
+      }
+      const now = performance.now()
+      if (now - lastTime >= frameMs) {
+        this.setLipSync(envelope[index])
+        index++
+        lastTime = now
+      }
+      requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
   }
 }
