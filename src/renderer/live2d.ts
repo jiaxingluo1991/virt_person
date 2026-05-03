@@ -116,10 +116,9 @@ export class Live2DController {
     this.model.x = this.app.renderer.width / 2
 
     if (this.viewMode === 'half') {
-      // For half-body: scale to fill height; width clips naturally since the window is narrow
       const baseScale = this.app.renderer.height / this.model.height
       this.model.y = this.app.renderer.height * 0.72
-      this.model.scale.set(baseScale * 1.35)
+      this.model.scale.set(baseScale * 1.35 * 1.2)
       return
     }
 
@@ -129,7 +128,7 @@ export class Live2DController {
       this.app.renderer.height / this.model.height
     )
     this.model.y = this.app.renderer.height * 0.55
-    this.model.scale.set(baseScale * 0.95)
+    this.model.scale.set(baseScale * 0.95 * 1.2)
   }
 
   setExpression(name: string): void {
