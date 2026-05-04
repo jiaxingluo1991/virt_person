@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# 加载项目根目录的 .env
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '.env'))
 
 # 项目根目录
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -41,7 +45,7 @@ STT_LANGUAGE     = "zh"
 
 # ── LLM（OpenClaw / 龙虾）────────────────────────────────────
 LLM_BASE_URL    = "http://192.168.3.61:18789/v1"
-LLM_API_KEY     = "21986d6065866ad6ad32a6c342828a5f330b9e2666428f55"
+LLM_API_KEY     = os.environ.get("OPENCLAW_API_KEY", "")
 LLM_MODEL       = "openclaw/default"
 LLM_MAX_TOKENS  = 8192
 LLM_SESSION_KEY = "agent:main:main"   # x-openclaw-session-key header

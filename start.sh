@@ -12,7 +12,32 @@ conda activate "$CONDA_ENV" 2>/dev/null
 NVM_INIT="export NVM_DIR=\"\$HOME/.nvm\" && source \"\$NVM_DIR/nvm.sh\""
 CONDA_INIT="source \"$CONDA_BASE/etc/profile.d/conda.sh\" && conda activate $CONDA_ENV"
 
-# ── 工具函数 ──────────────────────────────────────────────────
+# ── 检查 .env ────────────────────────────────────────────────
+check_env() {
+    local env_file="$REPO_DIR/.env"
+    if [ ! -f "$env_file" ]; then
+        echo ""
+        echo "  ⚠ 未找到 .env 文件，已从模板创建："
+        cp "$REPO_DIR/.env.example" "$env_file"
+        echo "    $env_file"
+        echo ""
+        echo "  请填写以下配置后重新启动："
+        echo "    OPENCLAW_API_KEY=<你的 API Key>"
+        echo ""
+        read -rp "  按 Enter 退出..." _
+        exit 1
+    fi
+    if ! grep -q "OPENCLAW_API_KEY=.\+" "$env_file"; then
+        echo ""
+        echo "  ⚠ .env 中 OPENCLAW_API_KEY 为空，请填写后重新启动："
+        echo "    $env_file"
+        echo ""
+        read -rp "  按 Enter 退出..." _
+        exit 1
+    fi
+}
+
+
 is_running() {
     pgrep -f "$1" >/dev/null 2>&1
 }
@@ -81,6 +106,7 @@ while true; do
     case "$choice" in
         1)
             echo ""
+            check_env
             if is_running "interaction/main.py"; then
                 echo "  语音交互管道已在运行，跳过"
             else
@@ -97,6 +123,7 @@ while true; do
             ;;
         2)
             echo ""
+            check_env
             if is_running "interaction/main.py"; then
                 echo "  语音交互管道已在运行"
             else
